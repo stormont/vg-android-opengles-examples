@@ -1,0 +1,159 @@
+/*
+ * Copyright (C) 2011 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.example.android.basicglsurfaceview.example05;
+
+import javax.microedition.khronos.egl.EGLConfig;
+import javax.microedition.khronos.opengles.GL10;
+
+import android.content.Context;
+import android.opengl.GLSurfaceView.Renderer;
+import android.opengl.Matrix;
+import android.os.SystemClock;
+
+import com.voyagegames.core.android.opengles.buffers.ColoredTriangleBuffer;
+import com.voyagegames.core.android.opengles.interfaces.IRenderableBuffer;
+import com.voyagegames.core.android.opengles.interfaces.IScene;
+import com.voyagegames.core.android.opengles.interfaces.IShaderSet;
+import com.voyagegames.core.android.opengles.modules.Camera;
+import com.voyagegames.core.android.opengles.modules.Frustum;
+import com.voyagegames.core.android.opengles.modules.LookAt;
+import com.voyagegames.core.android.opengles.modules.Vector3D;
+
+class ExampleTriangleRenderer implements Renderer {
+    
+    private final float[] TEMP_VERTICES_DATA = {
+			// In OpenGL counter-clockwise winding is default. This means that when we look at a triangle, 
+			// if the points are counter-clockwise we are looking at the "front". If not we are looking at
+			// the back. OpenGL has an optimization where all back-facing triangles are culled, since they
+			// usually represent the backside of an object and aren't visible anyways.
+
+			// Front face         // Front face (red)
+			-1.0f, 1.0f, 1.0f,	1.0f, 0.0f, 0.0f, 1.0f,			
+			-1.0f, -1.0f, 1.0f,   1.0f, 0.0f, 0.0f, 1.0f,
+			1.0f, 1.0f, 1.0f,     1.0f, 0.0f, 0.0f, 1.0f,
+			-1.0f, -1.0f, 1.0f, 	1.0f, 0.0f, 0.0f, 1.0f,			
+			1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 0.0f, 1.0f,
+			1.0f, 1.0f, 1.0f,     1.0f, 0.0f, 0.0f, 1.0f,
+			
+			// Right face	      // Right face (green)
+			1.0f, 1.0f, 1.0f,	0.0f, 1.0f, 0.0f, 1.0f,			
+			1.0f, -1.0f, 1.0f,    0.0f, 1.0f, 0.0f, 1.0f,
+			1.0f, 1.0f, -1.0f,    0.0f, 1.0f, 0.0f, 1.0f,
+			1.0f, -1.0f, 1.0f,	0.0f, 1.0f, 0.0f, 1.0f,			
+			1.0f, -1.0f, -1.0f,   0.0f, 1.0f, 0.0f, 1.0f,
+			1.0f, 1.0f, -1.0f,    0.0f, 1.0f, 0.0f, 1.0f,
+			
+			// Back face	      // Back face (blue)
+			1.0f, 1.0f, -1.0f,	0.0f, 0.0f, 1.0f, 1.0f,			
+			1.0f, -1.0f, -1.0f,   0.0f, 0.0f, 1.0f, 1.0f,
+			-1.0f, 1.0f, -1.0f,   0.0f, 0.0f, 1.0f, 1.0f,
+			1.0f, -1.0f, -1.0f,	0.0f, 0.0f, 1.0f, 1.0f,			
+			-1.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f, 1.0f,
+			-1.0f, 1.0f, -1.0f,   0.0f, 0.0f, 1.0f, 1.0f,
+			
+			// Left face	      // Left face (yellow)
+			-1.0f, 1.0f, -1.0f,	1.0f, 1.0f, 0.0f, 1.0f,			
+			-1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 0.0f, 1.0f,
+			-1.0f, 1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f,
+			-1.0f, -1.0f, -1.0f,	1.0f, 1.0f, 0.0f, 1.0f,			
+			-1.0f, -1.0f, 1.0f,   1.0f, 1.0f, 0.0f, 1.0f,
+			-1.0f, 1.0f, 1.0f,    1.0f, 1.0f, 0.0f, 1.0f,
+			
+			// Top face	      // Top face (cyan)
+			-1.0f, 1.0f, -1.0f,	0.0f, 1.0f, 1.0f, 1.0f,			
+			-1.0f, 1.0f, 1.0f,    0.0f, 1.0f, 1.0f, 1.0f,
+			1.0f, 1.0f, -1.0f,    0.0f, 1.0f, 1.0f, 1.0f,
+			-1.0f, 1.0f, 1.0f, 	0.0f, 1.0f, 1.0f, 1.0f,			
+			1.0f, 1.0f, 1.0f,     0.0f, 1.0f, 1.0f, 1.0f,
+			1.0f, 1.0f, -1.0f,    0.0f, 1.0f, 1.0f, 1.0f,
+			
+			// Bottom face	      // Bottom face (magenta)
+			1.0f, -1.0f, -1.0f,	1.0f, 0.0f, 1.0f, 1.0f,			
+			1.0f, -1.0f, 1.0f,    1.0f, 0.0f, 1.0f, 1.0f,
+			-1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+			1.0f, -1.0f, 1.0f, 	1.0f, 0.0f, 1.0f, 1.0f,			
+			-1.0f, -1.0f, 1.0f,   1.0f, 0.0f, 1.0f, 1.0f,
+			-1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 1.0f, 1.0f
+    };
+
+    private final IScene mScene;
+    private final IRenderableBuffer mTriangleBuffer;
+    private final IShaderSet mShaderSet;
+
+    public ExampleTriangleRenderer(final Context context) {
+        mScene = new ExampleScene();
+        mTriangleBuffer = new ColoredTriangleBuffer(TEMP_VERTICES_DATA);
+    	mShaderSet = new ExampleShaderSet();
+    }
+
+    @Override
+    public void onDrawFrame(final GL10 glUnused) {
+    	mScene.clear();
+
+    	
+		// Do a complete rotation every 10 seconds.
+		long time = SystemClock.uptimeMillis() % 10000L;
+		float angleInDegrees = (360.0f / 10000.0f) * ((int) time);
+        
+        final float[] modelMatrix = new float[16];
+        
+        
+        // Draw some cubes
+        mShaderSet.prepareRender();
+        
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, 4.0f, 0.0f, -7.0f);
+        Matrix.rotateM(modelMatrix, 0, angleInDegrees, 1.0f, 0, 0);
+        ((ExampleShaderSet)mShaderSet).render(mScene.camera(), mTriangleBuffer, modelMatrix);
+
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, -4.0f, 0.0f, -7.0f);
+        Matrix.rotateM(modelMatrix, 0, angleInDegrees, 0, 1.0f, 0);
+        ((ExampleShaderSet)mShaderSet).render(mScene.camera(), mTriangleBuffer, modelMatrix);
+        
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, 0.0f, 4.0f, -7.0f);
+        Matrix.rotateM(modelMatrix, 0, angleInDegrees, 0, 0, 1.0f);
+        ((ExampleShaderSet)mShaderSet).render(mScene.camera(), mTriangleBuffer, modelMatrix);
+        
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, 0.0f, -4.0f, -7.0f);
+        ((ExampleShaderSet)mShaderSet).render(mScene.camera(), mTriangleBuffer, modelMatrix);
+        
+        Matrix.setIdentityM(modelMatrix, 0);
+        Matrix.translateM(modelMatrix, 0, 0.0f, 0.0f, -5.0f);
+        Matrix.rotateM(modelMatrix, 0, angleInDegrees, 0, 1.0f, 1.0f);
+        ((ExampleShaderSet)mShaderSet).render(mScene.camera(), mTriangleBuffer, modelMatrix);
+    }
+
+    @Override
+    public void onSurfaceChanged(final GL10 glUnused, final int width, final int height) {
+        mScene.updateViewport(width, height);
+        mTriangleBuffer.setHandles(mShaderSet.handles());
+    }
+
+    @Override
+    public void onSurfaceCreated(final GL10 glUnused, final EGLConfig config) {
+    	mShaderSet.create();
+
+        final LookAt lookAt = new LookAt(new Vector3D(0, 0, -0.5f), new Vector3D(0, 0, -5.0f), new Vector3D(0, 1.0f, 0));
+        final Frustum frustum = new Frustum(1.0f, -1.0f, 1.0f, 10.0f);
+        
+        mScene.setCamera(new Camera(lookAt, frustum));
+    }
+    
+}

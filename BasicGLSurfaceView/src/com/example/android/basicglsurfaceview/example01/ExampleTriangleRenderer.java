@@ -36,7 +36,7 @@ import com.voyagegames.core.android.opengles.modules.LookAt;
 import com.voyagegames.core.android.opengles.modules.Texture;
 import com.voyagegames.core.android.opengles.modules.Vector3D;
 
-class ExampleTriangleRenderer implements Renderer {
+public class ExampleTriangleRenderer implements Renderer {
     
     private final float[] TEMP_TRIANGLE_VERTICES_DATA = {
             // X, Y, Z, U, V

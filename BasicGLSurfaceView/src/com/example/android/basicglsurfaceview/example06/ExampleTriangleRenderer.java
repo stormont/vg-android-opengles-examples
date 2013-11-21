@@ -37,7 +37,7 @@ import com.voyagegames.core.android.opengles.modules.LookAt;
 import com.voyagegames.core.android.opengles.modules.Texture;
 import com.voyagegames.core.android.opengles.modules.Vector3D;
 
-class ExampleTriangleRenderer implements Renderer {
+public class ExampleTriangleRenderer implements Renderer {
     
     private final float[] TEMP_VERTICES_DATA = {
 			// In OpenGL counter-clockwise winding is default. This means that when we look at a triangle, 
